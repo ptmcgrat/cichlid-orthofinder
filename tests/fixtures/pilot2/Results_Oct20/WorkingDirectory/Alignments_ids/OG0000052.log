@@ -1,0 +1,155 @@
+IQ-TREE version 3.1.3 for Linux x86 64-bit built Jul 26 2026
+Developed by Bui Quang Minh, Thomas Wong, Nhan Ly-Trong, Huaiyan Ren
+Contributed by Lam-Tung Nguyen, Dominik Schrempf, Chris Bielow,
+Olga Chernomor, Michael Woodhams, Diep Thi Hoang, Heiko Schmidt
+
+Host:    EBB-MCGRATH-D04 (AVX2, FMA3, 31 GB RAM)
+Command: iqtree3 -s <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids/OG0000052.fa --prefix <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids//OG0000052 -quiet
+Seed:    76337 (Using SPRNG - Scalable Parallel Random Number Generator)
+Time:    Tue Oct 20 14:29:40 2026
+Kernel:  AVX+FMA - 1 threads (32 CPU cores detected)
+
+HINT: Use -nt option to specify number of threads because your CPU has 32 cores!
+HINT: -nt AUTO will automatically determine the best number of threads to use.
+
+Reading alignment file <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids/OG0000052.fa ... Fasta format detected
+Reading fasta file: done in 0.000133991 secs using 48.51% CPU
+Alignment most likely contains protein sequences
+Constructing alignment: done in 0.000499964 secs using 51% CPU
+Alignment has 8 sequences with 616 columns, 558 distinct patterns
+109 parsimony-informative, 404 singleton sites, 102 constant sites
+       Gap/Ambiguity  Composition  p-value
+Analyzing sequences: done in 1.88351e-05 secs using 100.9% CPU
+   1  0_32    14.29%    passed     18.95%
+   2  1_260   17.53%    passed      7.86%
+   3  1_263   57.47%    failed      0.00%
+   4  1_397   34.74%    failed      0.00%
+   5  2_83    16.88%    passed     16.59%
+   6  3_189   11.69%    passed     13.00%
+   7  3_323   13.96%    failed      0.00%
+   8  4_41    17.37%    passed     23.10%
+WARNING: 1 sequences contain more than 50% gaps/ambiguity
+****  TOTAL   22.99%  3 sequences failed composition chi2 test (p-value<5%; df=19)
+Checking for duplicate sequences: done in 2.69413e-05 secs using 96.51% CPU
+
+
+Create initial parsimony tree by phylogenetic likelihood library (PLL)... 0.001 seconds
+Perform fast likelihood tree search using LG+I+G model...
+Estimate model parameters (epsilon = 5.000)
+Perform nearest neighbor interchange...
+Estimate model parameters (epsilon = 1.000)
+1. Initial log-likelihood: -6027.665
+Optimal log-likelihood: -6026.312
+Proportion of invariable sites: 0.016
+Gamma shape alpha: 1.592
+Parameters optimization took 1 rounds (0.073 sec)
+Time for fast ML tree search: 0.512 seconds
+
+NOTE: ModelFinder requires 7 MB RAM!
+ModelFinder will test up to 1232 protein models (sample size: 616 epsilon: 0.100) ...
+ No. Model         -LnL         df  AIC          AICc         BIC
+Akaike Information Criterion:           Q.INSECT+F+R2
+Corrected Akaike Information Criterion: Q.INSECT+F+R2
+Bayesian Information Criterion:         Q.INSECT+F+R2
+Best-fit model: Q.INSECT+F+R2 chosen according to BIC
+
+All model information printed to <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids//OG0000052.model.gz
+CPU time for ModelFinder: 43.202 seconds (0h:0m:43s)
+Wall-clock time for ModelFinder: 43.352 seconds (0h:0m:43s)
+
+NOTE: 1 MB RAM (0 GB) is required!
+Estimate model parameters (epsilon = 0.100)
+1. Initial log-likelihood: -5800.065
+2. Current log-likelihood: -5792.036
+3. Current log-likelihood: -5791.601
+4. Current log-likelihood: -5791.287
+5. Current log-likelihood: -5791.054
+6. Current log-likelihood: -5790.875
+7. Current log-likelihood: -5790.731
+8. Current log-likelihood: -5790.612
+Optimal log-likelihood: -5790.508
+Site proportion and rates:  (0.669,0.191) (0.331,2.638)
+Parameters optimization took 8 rounds (0.241 sec)
+Wrote distance file to... 
+Computing ML distances based on estimated model parameters...
+Calculating distance matrix: done in 0.0100751 secs using 99.99% CPU
+Computing ML distances took 0.010284 sec (of wall-clock time) 0.010289 sec (of CPU time)
+WARNING: Some pairwise ML distances are too long (saturated)
+Setting up auxiliary I and S matrices: done in 3.60012e-05 secs using 100% CPU
+Constructing RapidNJ tree: done in 2.19345e-05 secs using 100.3% CPU
+Computing RapidNJ tree took 0.000092 sec (of wall-clock time) 0.000091 sec (of CPU time)
+Log-likelihood of RapidNJ tree: -5787.499
+--------------------------------------------------------------------
+|             INITIALIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+Generating 98 parsimony trees... 0.052 second
+Computing log-likelihood of 52 initial trees ... 0.415 seconds
+Current best score: -5787.499
+
+Do NNI search on 20 best initial trees
+Estimate model parameters (epsilon = 0.100)
+BETTER TREE FOUND at iteration 1: -5787.287
+Iteration 10 / LogL: -5787.289 / Time: 0h:0m:45s
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+Iteration 20 / LogL: -5787.289 / Time: 0h:0m:47s
+Finish initializing candidate tree set (3)
+Current best tree score: -5787.287 / CPU time: 3.371
+Number of iterations: 20
+--------------------------------------------------------------------
+|               OPTIMIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+UPDATE BEST LOG-LIKELIHOOD: -5787.286
+UPDATE BEST LOG-LIKELIHOOD: -5787.286
+Iteration 30 / LogL: -5787.418 / Time: 0h:0m:48s (0h:0m:11s left)
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+UPDATE BEST LOG-LIKELIHOOD: -5787.286
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+Iteration 40 / LogL: -5787.291 / Time: 0h:0m:49s (0h:0m:10s left)
+Iteration 50 / LogL: -5787.287 / Time: 0h:0m:51s (0h:0m:8s left)
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+UPDATE BEST LOG-LIKELIHOOD: -5787.286
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+Iteration 60 / LogL: -5787.286 / Time: 0h:0m:52s (0h:0m:6s left)
+UPDATE BEST LOG-LIKELIHOOD: -5787.286
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+Iteration 70 / LogL: -5787.286 / Time: 0h:0m:54s (0h:0m:4s left)
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+Iteration 80 / LogL: -5787.287 / Time: 0h:0m:55s (0h:0m:3s left)
+WARNING: NNI search needs unusual large number of steps (8) to converge!
+Iteration 90 / LogL: -5787.287 / Time: 0h:0m:56s (0h:0m:1s left)
+Iteration 100 / LogL: -5788.225 / Time: 0h:0m:58s (0h:0m:0s left)
+TREE SEARCH COMPLETED AFTER 102 ITERATIONS / Time: 0h:0m:58s
+
+--------------------------------------------------------------------
+|                    FINALIZING TREE SEARCH                        |
+--------------------------------------------------------------------
+Performs final model parameters optimization
+Estimate model parameters (epsilon = 0.010)
+1. Initial log-likelihood: -5787.286
+2. Current log-likelihood: -5787.273
+3. Current log-likelihood: -5787.258
+4. Current log-likelihood: -5787.245
+5. Current log-likelihood: -5787.235
+Optimal log-likelihood: -5787.222
+Site proportion and rates:  (0.673,0.181) (0.327,2.685)
+Parameters optimization took 5 rounds (0.147 sec)
+BEST SCORE FOUND : -5787.222
+Total tree length: 32.420
+
+Total number of iterations: 102
+CPU time used for tree search: 14.537 sec (0h:0m:14s)
+Wall-clock time used for tree search: 14.564 sec (0h:0m:14s)
+Total CPU time used: 58.285 sec (0h:0m:58s)
+Total wall-clock time used: 58.469 sec (0h:0m:58s)
+
+Analysis results written to: 
+  IQ-TREE report:                <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids//OG0000052.iqtree
+  Maximum-likelihood tree:       <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids//OG0000052.treefile
+  Likelihood distances:          <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids//OG0000052.mldist
+  Screen log file:               <local>/pilot_tiny/out/Results_Oct20/WorkingDirectory/Alignments_ids//OG0000052.log
+
+Date and Time: Tue Oct 20 14:30:38 2026

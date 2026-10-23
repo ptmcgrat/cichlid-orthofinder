@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cichlid-orthofinder"
+version = "0.1.0"
+description = "OrthoFinder families and assignments for the cichlid protein phylogeny project"
+requires-python = ">=3.11"
+dependencies = ["cichlid-coordinator>=0.14,<0.15"]
+
+[project.scripts]
+cichlid-orthofinder = "cichlid_orthofinder.cli:main"
+cichlid-orthofinder-tree = "cichlid_orthofinder.treecache:main"
+cichlid-orthofinder-of = "cichlid_orthofinder.of_launcher:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
