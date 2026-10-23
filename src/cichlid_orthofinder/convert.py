@@ -692,7 +692,6 @@ def run_record(run_settings, conversion, coordinator_version, catalog_md5, prote
         "coordinator_versions": [{"attempt": a.get("n", i + 1), "version": a.get("coordinator_version"),
                                   **({"note": a["coordinator_version_note"]} if a.get("coordinator_version_note") else {})}
                                  for i, a in enumerate(attempts)],
-        "approval": settings.get("approval"),
         "search_reused": s.get("search_reused"),
         "species_tree": settings.get("species_tree"),
         "tree_set": conversion["tree_set"], "alignment_source": conversion["alignment_source"],

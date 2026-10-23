@@ -12,6 +12,11 @@ python -m pip install -e <coordinator clone>    # cichlid-coordinator>=0.14,<0.1
 python -m pip install -e .
 ```
 
+## Run
+
+`docs/RUNBOOK.md` has the whole sequence. The model setting defaults to the sheet's, `full` (ModelFinder on
+every cluster); `--model hybrid` or another rule must be asked for, and every start prints the rule in effect.
+
 ## Tests
 
 ```bash

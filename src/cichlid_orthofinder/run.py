@@ -90,18 +90,6 @@ def repo_state(runner=subprocess.run):
     return {"commit": commit or None, "dirty": bool(status.stdout.strip()) if status.returncode == 0 else None}
 
 
-def check_approval(text):
-    """The owner's approval as "<who>, <date YYYY-MM-DD>, <what was approved>". -> the text, or ValueError."""
-    parts = [s.strip() for s in str(text or "").split(",")]
-    if len(parts) < 3 or not parts[0] or not ",".join(parts[2:]).strip():
-        raise ValueError('--approval must be "<who>, <date YYYY-MM-DD>, <what was approved>"')
-    try:
-        datetime.strptime(parts[1], "%Y-%m-%d")
-    except ValueError:
-        raise ValueError(f'--approval: the second part must be the date, YYYY-MM-DD, not {parts[1]!r}') from None
-    return str(text).strip()
-
-
 def code_record(config=USER_CONFIG):
     """What ran: the package version, the SHA-256 of each of its source files, the tree program as registered
     with OrthoFinder and the IQ-TREE command the tree wrapper builds."""
@@ -287,7 +275,8 @@ def latest_results(output_dir):
 
 
 MODEL_SHORTCUTS = {"hybrid": "MFP;1000:TEST", "full": "MFP"}
-# There is no default model setting: the approved one is given on every start and resume, and recorded.
+# The sheet's agreed setting (section 4): ModelFinder on every cluster. Any other rule must be asked for.
+DEFAULT_MODEL = "full"
 
 # Attempts made before each attempt recorded its coordinator version (2026-10-23) ran under 0.13.0, the version
 # installed on this machine until then; the run's first attempt (2026-10-22) is one of them.
@@ -318,6 +307,16 @@ def model_rule(rule):
     rule = MODEL_SHORTCUTS.get(str(rule).strip().lower(), str(rule).strip())
     parse_models(rule)                       # raises ValueError if it is not a valid rule
     return rule
+
+
+def describe_model(rule):
+    """-> one line naming the model rule in effect, and saying so if it departs from the sheet's setting."""
+    names = {v: k for k, v in MODEL_SHORTCUTS.items()}
+    line = f"model setting: {rule}" + (f" ({names[rule]})" if rule in names else "")
+    if rule != MODEL_SHORTCUTS[DEFAULT_MODEL]:
+        line += ("; this departs from the sheet's setting, ModelFinder (-m MFP) on every cluster "
+                 "(orthofinder_repo_spec.md, section 4)")
+    return line
 
 
 def read_model(work):
@@ -352,7 +351,7 @@ def _now():
 
 def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_threads=None,
         seed=1, thread_rule="1;600:2;1500:8;3000:16", cores=None, order="ascending", snapshot_sizes=(300, 1000),
-        model=None, approval=None, from_search=None, poll_seconds=300,
+        model=DEFAULT_MODEL, from_search=None, poll_seconds=300,
         resume=False, dry_run=False, say=print):
     """Check the inputs, prepare the input folder (or resume), run OrthoFinder, record the attempt.
     -> the path of run_settings.json (or the command, for a dry run)."""
@@ -361,13 +360,7 @@ def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_
 
     if run_name not in RUNS:
         raise ValueError(f"run must be one of {RUNS}")
-    if not model:
-        raise ValueError("the model setting must be given: --model hybrid (MFP below 1,000 sequences, TEST from "
-                         "1,000), --model full (MFP for every cluster) or a rule; there is no default")
-    if not dry_run:                       # every real start, resume and second run needs the owner's approval
-        if not approval:
-            raise ValueError('no approval recorded: give --approval "<who>, <date YYYY-MM-DD>, <what was approved>"')
-        approval = check_approval(approval)
+    model = model or DEFAULT_MODEL
     work = Path(work).expanduser().resolve() / release / run_name
     input_dir, output_dir, cache = work / "input", work / "output", work / "tree_cache"
     cores = int(cores or os.cpu_count() or 1)
@@ -442,10 +435,11 @@ def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_
             "search_reused": reuse,
             "attempts": [],
         }
-    # The model rule: given, or (resuming) the one in the live settings file, or the default. Trees read the
-    # file again each time one starts, so `cichlid-orthofinder set-model` changes it while the run goes on.
+    # The model rule: given, or the default (full). It is written to the live settings file, which trees read
+    # again each time one starts, so `cichlid-orthofinder set-model` changes it while the run goes on.
     current = read_model(work) if resume else None
     rule = model_rule(model)
+    say(describe_model(rule))
     env_add = tree_env(cache, seed, thread_rule, cores, order, rule, work / LIVE_SETTINGS)
     versions = program_versions()
     say("versions: " + ", ".join(f"{k} {v}" for k, v in versions.items()) + f"; coordinator {cichlid_data.__version__}")
@@ -483,7 +477,7 @@ def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_
                      "launcher": "cichlid-orthofinder-of (OrthoFinder's own cmd_order option, set without changing its files)",
                      "launcher_patch": {"smallest_first_fix_in_use": order == "ascending",
                                         "trees_msa_md5": TREES_MSA_MD5},
-                     "model": {"value": model, "rule": rule}, "approval": approval,
+                     "model": {"value": model, "rule": rule},
                      "iqtree_argument_template": code["iqtree_argument_template"],
                      "species_tree": str(tree) if tree else None,
                      "threads": threads, "analysis_threads": analysis_threads,

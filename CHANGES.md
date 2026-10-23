@@ -1,7 +1,24 @@
 # Changes
 
-Newest first. No git in this working copy (README_for_claude_code.md, section 2): each entry names the
-files it changed instead of a commit.
+Newest first. Entries up to `run-v1-restart` (`3dbdc2e`) name the files they changed; later ones are also
+tagged commits.
+
+## 2026-10-23: default model `full`, no approval flag (`run-v1-r2`)
+
+- **What:** `--model` is optional and defaults to `full` (`-m MFP`, ModelFinder on every cluster) in `run`
+  and `verify` (`run.DEFAULT_MODEL`, `cli.py`, `verify.py`). `hybrid` (`MFP;1000:TEST`) and other rules are
+  still accepted when asked for, and `set-model` is unchanged. Every start and dry run prints the rule in
+  effect and, if it is not `full`, that it departs from the sheet (`run.describe_model`). **Sheet:**
+  section 4 (model).
+- **What:** the approval flag is removed: `--approval`, `run.check_approval`, the requirement to give it, the
+  `approval` entry in `run_settings.json` and in `run.json`'s parameters (`convert.run_record`), and its
+  tests. `verify` gate 1 is now "the model setting in effect is valid" (prints the rule; PASS if it parses);
+  the other gate numbers are unchanged. **Why:** the owner's decision (2026-10-23): the sheet asks that the
+  owner agree to the run before it starts, not for a code gate; approvals are recorded outside the code.
+- Docs: `README.md`, `docs/RUNBOOK.md`, `docs/COMPLIANCE.md`. Tests: 123 (the 3 approval tests removed; the
+  2 tests that required `--model` now check the `full` default; 1 test for the new gate 1).
+- **Not changed:** `treecache.py`, `of_launcher.py`, `snapshot.py`, `status.py`, and nothing in the tree
+  cache key (`MFP` trees keep their keys).
 
 ## 2026-10-23: records, subcommands, species gates, runbook
 

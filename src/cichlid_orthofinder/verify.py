@@ -1,10 +1,9 @@
 """The gates to pass before the full run restarts, each printed as PASS or FAIL and saved to gates.txt.
 
-    cichlid-orthofinder verify --work <scratch> --model hybrid|full
-        [--approval "<who>, <date>, <what was approved>"] [--out DIR]
+    cichlid-orthofinder verify --work <scratch> [--model full|hybrid|<rule>] [--out DIR]
 
-1. the owner's written approval (of the model setting, the tree-set check plan, the run-time choices and
-   where it runs) is recorded: given as --approval once it is in writing;
+1. the model setting in effect is valid: the rule is printed (and whether it departs from the sheet's,
+   ModelFinder on every cluster); PASS if it parses;
 2. `cichlid-data check --release v1 --part OrthoFinder --fetch` passes;
 3. the catalog's proteomes_md5 of the part's species is the one the saved search was made from;
 4. the data root is the real one: $CICHLID_DATA_ROOT as set (or the coordinator's configured root), and
@@ -20,7 +19,7 @@
 11. the species tree the run gives -s has the MD5 the catalog recorded for that file when it was built (and
     the run's recorded tree text is the same file).
 
-Gates 1 and 6 need the owner and the reviewer: this file records and checks, it does not decide.
+Gate 6 needs the reviewer: this file records and checks, it does not decide.
 Exit code 0 only if every gate passes.
 """
 
@@ -70,18 +69,14 @@ def _run(cmd, timeout=1800):
         return None, str(e)
 
 
-def gate_approval(approval):
-    from .run import check_approval
-    g = Gate(1, "the owner's written approval is recorded")
-    if not approval:
-        g.note('not recorded: give --approval "<who>, <date>, <what was approved>" once it is in writing')
-        g.note("expected to FAIL for now: the owner has not yet given the written approval to restart")
-        return g
+def gate_model(model):
+    from .run import describe_model, model_rule
+    g = Gate(1, "the model setting in effect is valid")
     try:
-        g.note(f"approval: {check_approval(approval)}")
+        g.note(describe_model(model_rule(model)))
         g.ok = True
     except ValueError as e:
-        g.note(str(e))
+        g.note(f"{model!r}: {e}")
     return g
 
 
@@ -295,14 +290,14 @@ def gate_species_tree(work):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="cichlid-orthofinder verify", description=__doc__.split("\n\n")[0])
     p.add_argument("--work", required=True, help="the run's scratch folder (as given to cichlid-orthofinder run)")
-    p.add_argument("--model", required=True, help="the model setting to restart with: hybrid, full or a rule")
-    p.add_argument("--approval", help='the written approval, "<who>, <date YYYY-MM-DD>, <what was approved>"')
+    p.add_argument("--model", default="full",
+                   help="the model setting to restart with: full (the sheet's setting; default), hybrid or a rule")
     p.add_argument("--out", help="folder for the saved outputs (default: a new temporary folder)")
     args = p.parse_args(argv)
     import os
     out_dir = Path(args.out or tempfile.mkdtemp(prefix="verify_")).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    gates = [gate_approval(args.approval), gate_check(out_dir), gate_proteomes(),
+    gates = [gate_model(args.model), gate_check(out_dir), gate_proteomes(),
              gate_data_root(os.environ), gate_versions(args.work), gate_dry_run(args.work, args.model, out_dir),
              gate_repo(), gate_models(), gate_proteome_files(), gate_species_lists(), gate_species_tree(args.work)]
     report = io.StringIO()

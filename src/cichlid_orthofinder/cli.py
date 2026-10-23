@@ -40,12 +40,9 @@ def main(argv=None):
                         "16 from 3,000 (default; chosen by simulating the run order, pilot_runs/scripts/threshold_search.py)")
     r.add_argument("--order", default="ascending", choices=("ascending", "descending"),
                    help="smallest first (default: interim results come early; OrthoFinder's own order, with a one-line in-memory fix that leaves outputs identical, docs/pilot.md) or largest first")
-    r.add_argument("--model", required=True,
-                   help="IQ-TREE's -m by size, required on every start and resume (no default): 'hybrid' (MFP below "
-                        "1,000 sequences, TEST from 1,000), 'full' (MFP for all) or a rule such as 'MFP;1000:TEST'")
-    r.add_argument("--approval", help='the owner\'s written approval, "<who>, <date YYYY-MM-DD>, <what was '
-                                      'approved>"; required for every run except --dry-run (also --resume and '
-                                      'the second run)')
+    r.add_argument("--model", default="full",
+                   help="IQ-TREE's -m by size: 'full' (MFP for all, the sheet's setting; default), 'hybrid' (MFP below "
+                        "1,000 sequences, TEST from 1,000) or a rule such as 'MFP;1000:TEST'")
     r.add_argument("--from-search", help="start from this finished search (a WorkingDirectory with the Blast*.txt.gz "
                                          "files), used only if every file is complete and it is a search of exactly "
                                          "the release's proteomes (otherwise the run searches again); it is copied, the original "
@@ -162,7 +159,7 @@ def main(argv=None):
         try:
             run(args.work, run_name=args.run, release=args.release, threads=args.threads,
                 analysis_threads=args.analysis_threads, seed=args.seed, thread_rule=args.thread_rule,
-                cores=args.cores, order=args.order, model=args.model, approval=args.approval, from_search=args.from_search, snapshot_sizes=[int(s) for s in args.snapshot_sizes.split(',') if s.strip()],
+                cores=args.cores, order=args.order, model=args.model, from_search=args.from_search, snapshot_sizes=[int(s) for s in args.snapshot_sizes.split(',') if s.strip()],
                 resume=args.resume, dry_run=args.dry_run)
         except (RuntimeError, FileNotFoundError, ValueError) as e:
             print(f"error: {e}", file=sys.stderr)

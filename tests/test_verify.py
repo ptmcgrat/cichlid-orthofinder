@@ -4,13 +4,14 @@ from cichlid_orthofinder import verify
 
 
 class TestVerify(unittest.TestCase):
-    def test_approval_gate(self):
-        self.assertFalse(verify.gate_approval(None).ok)
-        self.assertFalse(verify.gate_approval("owner").ok)
-        self.assertFalse(verify.gate_approval("owner, soon, the run").ok)
-        g = verify.gate_approval("Owner, 2026-10-24, model hybrid")
+    def test_model_gate(self):
+        g = verify.gate_model("full")
         self.assertTrue(g.ok)
-        self.assertIn("Owner, 2026-10-24, model hybrid", g.lines[0])
+        self.assertEqual(g.lines, ["model setting: MFP (full)"])
+        g = verify.gate_model("hybrid")
+        self.assertTrue(g.ok)
+        self.assertIn("departs from the sheet", g.lines[0])
+        self.assertFalse(verify.gate_model("MFP;1000").ok)
 
     def test_small_alignment_is_repeatable_and_aligned(self):
         a = verify.small_alignment()

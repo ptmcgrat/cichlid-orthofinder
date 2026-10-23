@@ -7,8 +7,7 @@ typed by hand. The only paths you choose are the run's scratch folder and the de
 |---|---|
 | `<WORK>` | the run's scratch folder (the stopped run: `~/Desktop/orthofinder_claude/work`); not a data folder |
 | `<RUN>` | `<WORK>/v1/our_species_tree`, the run's folder inside it |
-| `<MODEL>` | the approved model setting: `full` (ModelFinder on every cluster, the sheet's setting) or `hybrid` |
-| `<APPROVAL>` | the owner's written approval: `"<who>, <YYYY-MM-DD>, <what was approved>"` |
+| `[--model <MODEL>]` | only to depart from the sheet: the default is `full` (ModelFinder on every cluster, the sheet's setting); `hybrid` or another rule must be asked for. Every start and dry run prints the rule in effect |
 | `<TREE_SET>`, `<ALIGNMENT>`, `<MIN_SIZE>` | the owner's choices for the families (defaults `raw_pruned`, `orthogroup`, `4`) |
 
 ```bash
@@ -19,19 +18,21 @@ conda activate phylo-trees
 
 ```bash
 cichlid-data check --release v1 --part OrthoFinder --fetch        # the 35 proteomes and the species tree
-cichlid-orthofinder verify --work <WORK> --model <MODEL> --approval <APPROVAL> --out <WORK>/verify
-#   every gate PASS (gates.txt in <WORK>/verify); gate 7 needs the code committed, tagged and pushed first
-cichlid-orthofinder run --work <WORK> --model <MODEL> --resume --dry-run
+cichlid-orthofinder verify --work <WORK> [--model <MODEL>] --out <WORK>/verify
+#   every gate PASS (gates.txt in <WORK>/verify); gate 1 prints the model rule in effect;
+#   gate 7 needs the code committed, tagged and pushed first
+cichlid-orthofinder run --work <WORK> [--model <MODEL>] --resume --dry-run
 #   prints the command and the environment; nothing is started. Send it to the reviewer.
 ```
 
 ## 2. The restart
 
 ```bash
-cichlid-orthofinder run --work <WORK> --model <MODEL> --approval <APPROVAL> --resume --detach
+cichlid-orthofinder run --work <WORK> [--model <MODEL>] --resume --detach
 ```
 
-`--resume` reuses the run's search and every finished tree in its cache. To start from scratch instead, use a
+The owner agrees to the run before it starts; that agreement is recorded outside the code. `--resume` reuses
+the run's search and every finished tree in its cache. To start from scratch instead, use a
 new `<WORK>` and add `--from-search <the saved search's WorkingDirectory>`: it is used only if it is complete and
 of exactly these proteomes.
 

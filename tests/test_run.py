@@ -116,7 +116,7 @@ class TestModelSetting(unittest.TestCase):
         from cichlid_orthofinder import run as R
         self.assertEqual(R.model_rule("hybrid"), "MFP;1000:TEST")
         self.assertEqual(R.model_rule("FULL"), "MFP")
-        self.assertFalse(hasattr(R, "DEFAULT_MODEL"), "there is no default model setting")
+        self.assertEqual(R.model_rule(R.DEFAULT_MODEL), "MFP", "the default is the sheet's setting")
         with self.assertRaises(ValueError):
             R.model_rule("MFP;1000")
         with tempfile.TemporaryDirectory() as d:
@@ -253,25 +253,23 @@ class TestSearchReuse(unittest.TestCase):
 
 
 class TestSection2Gates(unittest.TestCase):
-    """Brief section 2: an explicit, recorded model setting; every program version; the code's commit."""
+    """Brief section 2: a recorded model setting (default full); every program version; the code's commit."""
 
-    def test_model_is_required(self):
-        with tempfile.TemporaryDirectory() as d:
-            with self.assertRaisesRegex(ValueError, "there is no default"):
-                run.run(d, model=None, dry_run=True)
-
-    def test_approval_is_required_unless_dry_run(self):
-        with tempfile.TemporaryDirectory() as d:
-            for kw in ({}, {"resume": True}, {"run_name": "own_species_tree"}):
-                with self.assertRaisesRegex(ValueError, "no approval recorded"):
-                    run.run(d, model="hybrid", **kw)
-
-    def test_approval_text_is_checked(self):
-        self.assertEqual(run.check_approval(" Owner, 2026-10-24, model hybrid and the run on this machine "),
-                         "Owner, 2026-10-24, model hybrid and the run on this machine")
-        for bad in ("Owner", "Owner, 2026-10-24", "Owner, next week, model hybrid", ", 2026-10-24, x"):
-            with self.assertRaises(ValueError, msg=bad):
-                run.check_approval(bad)
+    def test_model_defaults_to_full_and_is_printed(self):
+        from unittest import mock
+        for model, expect, departs in ((None, "model setting: MFP (full)", False),
+                                       ("hybrid", "model setting: MFP;1000:TEST (hybrid)", True)):
+            said = []
+            with tempfile.TemporaryDirectory() as d, \
+                    mock.patch.object(run, "program_versions", return_value={"orthofinder": None}), \
+                    mock.patch.object(run.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)), \
+                    mock.patch("cichlid_data.get_store"), mock.patch("cichlid_data.Catalog"), \
+                    mock.patch("cichlid_data.get_layout"):
+                with self.assertRaises(RuntimeError):            # stops at the versions, after the model line
+                    run.run(d, run_name="own_species_tree", model=model, dry_run=True, say=said.append)
+            line = next(l for l in said if l.startswith("model setting:"))
+            self.assertTrue(line.startswith(expect), line)
+            self.assertEqual("departs from the sheet" in line, departs, line)
 
     def test_refuses_a_missing_version(self):
         from unittest import mock
@@ -281,8 +279,7 @@ class TestSection2Gates(unittest.TestCase):
                 mock.patch("cichlid_data.get_store"), mock.patch("cichlid_data.Catalog"), \
                 mock.patch("cichlid_data.get_layout"):
             with self.assertRaisesRegex(RuntimeError, "could not read the version of famsa"):
-                run.run(d, run_name="own_species_tree", model="hybrid", approval="Owner, 2026-10-24, test",
-                        dry_run=True)
+                run.run(d, run_name="own_species_tree", model="hybrid", dry_run=True)
 
     def test_code_record(self):
         rec = run.code_record(config="/nonexistent/config.json")
@@ -296,11 +293,14 @@ class TestSection2Gates(unittest.TestCase):
         self.assertIn("-seed", t)
         self.assertEqual(t[t.index("-m") + 1], "<model>")
 
-    def test_cli_requires_model(self):
-        import contextlib, io
+    def test_cli_model_defaults_to_full(self):
+        from unittest import mock
         from cichlid_orthofinder import cli
-        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-            cli.main(["run", "--work", "/nonexistent", "--dry-run"])
+        with mock.patch.object(run, "run") as fake:
+            self.assertEqual(cli.main(["run", "--work", "/nonexistent", "--dry-run"]), 0)
+            self.assertEqual(fake.call_args.kwargs["model"], "full")
+            cli.main(["run", "--work", "/nonexistent", "--model", "hybrid", "--dry-run"])
+            self.assertEqual(fake.call_args.kwargs["model"], "hybrid")
 
     def test_missing_versions(self):
         self.assertEqual(run.missing_versions({"orthofinder": "3.1.5", "famsa": None, "mcl": ""}), ["famsa", "mcl"])
