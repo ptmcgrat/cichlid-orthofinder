@@ -135,10 +135,7 @@ Everything below passed on 2026-10-23 and was rechecked on 2026-10-24.
 
 **The real data:**
 - **Species:** the checks in "Compliance" above, run on the real 35 proteomes and the real species tree.
-- **Restart:** all 7,619 gene trees already finished in the stopped run will be reused under the current code.
 
-The full proof (every check, its evidence and how to rerun it in 30 seconds) is in the owner's proof bundle
-(`proof_2026-10-23.zip`, with `SUMMARY.md` and `PROOF.md`), available from the project owner.
 
 ---
 
