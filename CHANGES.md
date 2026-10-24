@@ -3,6 +3,17 @@
 Newest first. Entries up to `run-v1-restart` (`3dbdc2e`) name the files they changed; later ones are also
 tagged commits.
 
+## 2026-10-24: README for the hand-over (`run-v1-r3`)
+
+- **What:** `README.md` rewritten in plain language. It covers:
+  - what the repository does, step by step;
+  - the output structure, compared with the coordinator's;
+  - compliance with the coordinator, and how we know the species are right;
+  - what was tested and the run-time features;
+  - the exact OrthoFinder and IQ-TREE flags, the IQ-TREE model options and our recommendation (not final);
+  - what waits for coordinator approval, and where to find what in the repository.
+- **Not changed:** no code, test or other document. `run-v1-r3` runs exactly the code of `run-v1-r2`.
+
 ## 2026-10-23: default model `full`, no approval flag (`run-v1-r2`)
 
 - **What:** `--model` is optional and defaults to `full` (`-m MFP`, ModelFinder on every cluster) in `run`
