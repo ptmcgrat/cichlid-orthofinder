@@ -516,6 +516,23 @@ clusters (not the orthogroups in `Orthogroups.txt` and `assign/`), or cutting ea
 out of an unrooted raw tree. The resolved trees match the final orthogroups one to one and are rooted, but
 OrthoFinder has rearranged a fifth of them with the species tree. For the owner and the coordinator.
 
+### Decision: the tree set for the families (2026-10-24)
+
+The family trees (`families/<OG>/tree.nwk`) are, for each final orthogroup, the raw IQ-TREE tree of its cluster
+pruned to that orthogroup's genes: unrooted, `tree_mode` `denovo`, branch lengths kept, no support values. This is
+the coordinator's recommendation (sheet, section 4). OrthoFinder's resolved trees stay in `native/`.
+
+Why: the sheet reports that OrthoFinder's resolved trees differ in topology from the raw trees in 21% of the
+pilot's orthogroups (69 of 336), because it rearranges them with the species tree. That would build
+OrthoFinder's own duplication logic into one side of the comparison of methods. The raw pruned trees are unrooted,
+so the homology decider roots them itself by reconciliation with the master species tree, as for the other two
+methods.
+
+Status: the project owner's provisional choice, made before the full run. It is confirmed, or changed, after the
+split check on the real output (how many orthogroups come from a split cluster, and how many species the pieces
+share), which is reported in `native/summary/`. The choice used is recorded in `run.json`
+(`parameters.tree_set`) when the results are converted.
+
 ### Alignments
 
 - `MultipleSequenceAlignments/OG*.fa` is per final orthogroup (350, for orthogroups of 2 or more genes), rows

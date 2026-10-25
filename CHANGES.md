@@ -3,6 +3,13 @@
 Newest first. Entries up to `run-v1-restart` (`3dbdc2e`) name the files they changed; later ones are also
 tagged commits.
 
+## 2026-10-24: tree set recorded; docs only (`run-v1-r4`)
+
+- **What:** `docs/pilot.md` has a new section, "Decision: the tree set for the families" (the raw IQ-TREE tree pruned
+  to each orthogroup, the owner's provisional choice). `docs/COMPLIANCE.md` row 8 is marked done. The README names the
+  right tag.
+- **Not changed:** no code or test. `run-v1-r4` runs exactly the code of `run-v1-r2`.
+
 ## 2026-10-24: README for the hand-over (`run-v1-r3`)
 
 - **What:** `README.md` rewritten in plain language. It covers:

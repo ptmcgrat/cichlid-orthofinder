@@ -8,7 +8,7 @@ It follows the coordinator's instruction sheet for this repository, `docs/orthof
 coordinator (a verbatim copy is in `docs/` here), and works with coordinator version 0.14.
 
 **Status (2026-10-24):**
-- **The code is finished and tested** (tag `run-v1-r2`).
+- **The code is finished and tested** (tag `run-v1-r4`; the code is the same as in `run-v1-r2` and `run-v1-r3`).
 - **The input species and the output format match the coordinator,** and every check passes.
 - **The full 35-species run is paused.** It waits for the coordinator to approve the run-time choices listed in
   "Waiting for coordinator approval" below. Then it restarts, reusing the 7,619 gene trees already finished.
