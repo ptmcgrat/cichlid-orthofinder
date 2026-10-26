@@ -8,7 +8,7 @@ It follows the coordinator's instruction sheet for this repository, `docs/orthof
 coordinator (a verbatim copy is in `docs/` here), and works with coordinator version 0.14.
 
 **Status (2026-10-24):**
-- **The code is finished and tested** (tag `run-v1-r5`: early results now also come out in the coordinator's format,
+- **The code is finished and tested** (tag `run-v1-r6`: early results now also come out in the coordinator's format,
   and results of a resumed run convert correctly; see `CHANGES.md`).
 - **The input species and the output format match the coordinator,** and every check passes.
 - **The full 35-species run is paused.** It waits for the coordinator to approve the run-time choices listed in

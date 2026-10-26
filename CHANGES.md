@@ -3,6 +3,14 @@
 Newest first. Entries up to `run-v1-restart` (`3dbdc2e`) name the files they changed; later ones are also
 tagged commits.
 
+## 2026-10-26: interrupted interim conversion finished at the end (`run-v1-r6`)
+
+- **What:** a snapshot whose conversion was cut short (the machine stopped right after the snapshot) is now
+  converted when the resumed run finishes. File: `run.py` (one call after `watcher.finish`).
+- **Tested live** on a small real run killed right after its first snapshot and resumed: the snapshot was converted
+  at the end, it passes `cichlid-data validate`, and its 32 families are byte for byte the same as the final ones.
+  129 tests pass.
+
 ## 2026-10-26: early results in the coordinator's format; resumed runs convert (`run-v1-r5`)
 
 - **Early results:** each interim snapshot is now converted into the coordinator's format right after it is taken,

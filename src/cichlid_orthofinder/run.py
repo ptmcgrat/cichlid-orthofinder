@@ -519,6 +519,8 @@ def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_
         settings["results"] = attempt["results"]
         if watcher:
             watcher.finish(attempt["results"])
+            save()
+            convert_snapshots(settings["interim"], settings_file, release, say)   # any left by an interrupted run
     save()
     if not ok:
         miss = attempt.get("missing_trees")
