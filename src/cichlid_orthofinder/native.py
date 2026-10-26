@@ -7,6 +7,9 @@ the preliminary clusters, and the raw trees and alignments. Not copied: the sear
 (Species<i>.fa, diamondDBSpecies<i>.dmnd, Blast<i>_<j>.txt.gz) and pickle/. They stay, read-only, on the
 machine that ran them, reusable with -b.
 
+After a resume (-b) OrthoFinder writes SpeciesIDs.txt and SequenceIDs.txt only in the first working folder
+(Log.txt's WorkingDirectory_Base); they are copied from there into WorkingDirectory/.
+
 A copied OrthoFinder folder still points at the original through absolute paths in its Log.txt, so the copy
 is a record, not a folder OrthoFinder can be restarted from.
 """
@@ -21,15 +24,33 @@ WORKING_KEEP = ("SpeciesIDs.txt", "SequenceIDs.txt", "N0.ids.tsv", "clusters_Ort
 NOT_COPIED = ("Species*.fa", "diamondDBSpecies*.dmnd", "Blast*_*.txt.gz", "pickle")
 
 
+def working_sources(results):
+    """-> {name in WORKING_KEEP: its path}, from the results' WorkingDirectory or, for what is not there, the
+    first working folder of a resumed run (Log.txt's WorkingDirectory_Base)."""
+    results = Path(results)
+    folders = [results / "WorkingDirectory"]
+    if (results / "Log.txt").is_file():
+        from .snapshot import log_paths
+        base = log_paths(results).get("WorkingDirectory_Base")
+        if base:
+            folders.append(Path(base))
+    out = {}
+    for name in WORKING_KEEP:
+        for folder in folders:
+            if (folder / name).exists():
+                out[name] = folder / name
+                break
+    return out
+
+
 def keep_list(results):
     """-> [(path relative to the result folder, is it a folder)] of what the curated copy holds, sorted."""
     results = Path(results)
     keep = []
     for entry in sorted(results.iterdir()):
         if entry.name == "WorkingDirectory":
-            for name in WORKING_KEEP:
-                if (entry / name).exists():
-                    keep.append((f"WorkingDirectory/{name}", (entry / name).is_dir()))
+            for name, src in working_sources(results).items():
+                keep.append((f"WorkingDirectory/{name}", src.is_dir()))
         else:
             keep.append((entry.name, entry.is_dir()))
     return keep
@@ -47,8 +68,9 @@ def curate(results, dest):
     results, dest = Path(results), Path(dest)
     if dest.exists():
         raise FileExistsError(f"{dest} exists: the curated copy goes into a new folder")
+    working = working_sources(results)
     for rel, is_dir in keep_list(results):
-        src, target = results / rel, dest / rel
+        src, target = working.get(rel.removeprefix("WorkingDirectory/"), results / rel), dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         if is_dir:
             shutil.copytree(src, target)

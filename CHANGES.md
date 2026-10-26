@@ -3,6 +3,23 @@
 Newest first. Entries up to `run-v1-restart` (`3dbdc2e`) name the files they changed; later ones are also
 tagged commits.
 
+## 2026-10-26: early results in the coordinator's format; resumed runs convert (`run-v1-r5`)
+
+- **Early results:** each interim snapshot is now converted into the coordinator's format right after it is taken,
+  inside the snapshot's own folder (`<snapshot>/Results/v1/OrthoFinder/`), never into the coordinator's Results
+  folder. `run.json` marks it as interim (`parameters.interim`: size, time, trees in it, genes left out). By hand:
+  `cichlid-orthofinder convert --snapshot <folder>`. A failed conversion is recorded in `run_settings.json` and never
+  stops the run. Files: `convert.py` (`convert_snapshot`, `convert(working=...)`), `run.py` (`convert_snapshots`).
+- **Fix, resumed runs:** after a resume (`-b`), and the real run always starts with one from the saved search,
+  OrthoFinder keeps `SpeciesIDs.txt` and `SequenceIDs.txt` only in the first working folder. The converter stopped on
+  this, and `native` left the two files out. Both now take them from that folder (Log.txt's `WorkingDirectory_Base`).
+  Files: `convert.py` (`ids_folder`), `native.py` (`working_sources`).
+- **Tested:** 129 tests (6 new). On a small real run that was stopped and resumed: the final results and the interim
+  results both pass `cichlid-data validate`; all 31 interim families are byte for byte the same as their final
+  ones; all 208 genes with an interim family point to the matching final family; `native/` has both mapping files.
+- **Not changed:** `snapshot.py`, the tree wrapper, the launcher, `status.py`, the cache key, the inputs and the
+  output format.
+
 ## 2026-10-24: tree set recorded; docs only (`run-v1-r4`)
 
 - **What:** `docs/pilot.md` has a new section, "Decision: the tree set for the families" (the raw IQ-TREE tree pruned

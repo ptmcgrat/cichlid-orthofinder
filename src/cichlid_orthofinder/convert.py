@@ -3,6 +3,7 @@
     cichlid-orthofinder convert --results <OrthoFinder Results_<date>/> --run-settings <run_settings.json>
         [--tree-set raw_pruned|resolved] [--alignment orthogroup|raw_cluster] [--min-size 4]
         [--cache <tree_cache>] [--out <Results/v1/OrthoFinder/>]
+    cichlid-orthofinder convert --snapshot <snapshot_upto<N>_<time>/> [--run-settings ...] [--out ...]
 
 The converter reads explicit input and output paths, so it can be tested on a scratch tree; by default the
 command line takes the output folder from the coordinator (`get_layout().results(release, "OrthoFinder")`).
@@ -18,6 +19,11 @@ Choices that are the owner's, so they are parameters here (defaults as recommend
   `raw_cluster`, the preliminary cluster's alignment (`Alignments_ids/`, the one the raw tree was built on),
   restricted to the orthogroup's rows with the columns that are then all gaps removed;
 - minimum family size (genes): 4.
+
+Interim snapshots (`snapshot.take`) are converted the same way, with the same writers and checks, into the
+snapshot's own folder (`<snapshot>/Results/<release>/OrthoFinder/`), never into the coordinator's Results
+folder: their orthogroup IDs are the snapshot's own numbering, not the final run's. run.json says so
+(`parameters.interim`).
 
 Determinism: the same OrthoFinder output gives the same files, byte for byte. Rows and families are
 sorted; branch lengths keep IQ-TREE's strings where a length is unchanged and sums are written with
@@ -236,6 +242,18 @@ def md5_file(path):
     return h.hexdigest()
 
 
+def ids_folder(results, working):
+    """The folder with SpeciesIDs.txt and SequenceIDs.txt: `working`, or after a resume (-b) the first working
+    folder, which Log.txt names as WorkingDirectory_Base (OrthoFinder writes the mapping files only there)."""
+    if Path(working, "SequenceIDs.txt").is_file():
+        return Path(working)
+    from .snapshot import log_paths
+    base = log_paths(results).get("WorkingDirectory_Base") if Path(results, "Log.txt").is_file() else None
+    if base and Path(base, "SequenceIDs.txt").is_file():
+        return Path(base)
+    raise ConversionError(f"no SequenceIDs.txt in {working}" + (f" or in WorkingDirectory_Base {base}" if base else ""))
+
+
 def read_species_ids(working):
     """SpeciesIDs.txt -> {species number: prefix}. OrthoFinder numbers species alphabetically: read, never assume."""
     out = {}
@@ -395,7 +413,7 @@ def check_alignment(rows, leaves, where):
         raise ConversionError(f"{where}: rows of different lengths ({min(lengths)} to {max(lengths)})")
 
 
-def alignment(results, source, og, cluster, genes, prefixes, gene_to_internal):
+def alignment(results, source, og, cluster, genes, prefixes, gene_to_internal, working=None):
     """-> [(gene ID, aligned sequence)], sorted by gene ID, exactly one row per gene."""
     if source == "orthogroup":
         f = Path(results, "MultipleSequenceAlignments", f"{og}.fa")
@@ -410,7 +428,7 @@ def alignment(results, source, og, cluster, genes, prefixes, gene_to_internal):
                                       f"<prefix>_<prefix>_<id> (rows: {len(genes)} genes expected)") from None
         check_alignment(rows, genes, f"MultipleSequenceAlignments/{og}.fa")
     else:
-        f = Path(results, "WorkingDirectory", "Alignments_ids", f"OG{cluster:07d}.fa")
+        f = Path(working or Path(results, "WorkingDirectory"), "Alignments_ids", f"OG{cluster:07d}.fa")
         if not f.is_file():
             raise ConversionError(f"{og}: no Alignments_ids/OG{cluster:07d}.fa")
         internal = {gene_to_internal[g]: g for g in genes}
@@ -493,25 +511,27 @@ def models_by_cluster(cache):
 
 
 def convert(results, out, species, proteomes, of_version, tree_set="raw_pruned", alignment_source="orthogroup",
-            min_size=DEFAULT_MIN_SIZE, release=RELEASE, cache=None, say=print):
+            min_size=DEFAULT_MIN_SIZE, release=RELEASE, cache=None, working=None, say=print):
     """Convert one OrthoFinder Results_<date>/ folder into `out` (assign/, families/, native/summary/): the
     coordinator's ResultsLayout for the real results, or a scratch folder with the same structure. `species`
     is the catalog's ordered list of prefixes and `proteomes` {prefix: path}. A rerun into the same output
-    reuses the finished families whose inputs are unchanged. -> a summary dict (counts and the split-cluster
-    check) for run.json."""
+    reuses the finished families whose inputs are unchanged. `working` is the folder with the mapping files,
+    clusters and trees (default: the results' WorkingDirectory; a snapshot's is its staged copy). -> a summary
+    dict (counts and the split-cluster check) for run.json."""
     from cichlid_data import schemas
     if tree_set not in TREE_SETS:
         raise ConversionError(f"tree set must be one of {TREE_SETS}")
     if alignment_source not in ALIGNMENT_SOURCES:
         raise ConversionError(f"alignment source must be one of {ALIGNMENT_SOURCES}")
     results, paths = Path(results), OutputPaths.of(out)
-    working = results / "WorkingDirectory"
+    working = Path(working) if working else results / "WorkingDirectory"
 
     # 1. mapping files: every species and every sequence accounted for
-    species_ids = read_species_ids(working)
+    ids = ids_folder(results, working)
+    species_ids = read_species_ids(ids)
     if sorted(species_ids.values()) != sorted(species):
         raise ConversionError(f"SpeciesIDs.txt has {sorted(species_ids.values())}, the catalog {sorted(species)}")
-    internal_to_gene = read_sequence_ids(working)
+    internal_to_gene = read_sequence_ids(ids)
     gene_to_internal = {g: i for i, g in internal_to_gene.items()}
     if len(gene_to_internal) != len(internal_to_gene):
         raise ConversionError("SequenceIDs.txt maps two sequences to the same gene ID")
@@ -525,7 +545,7 @@ def convert(results, out, species, proteomes, of_version, tree_set="raw_pruned",
         if theirs != mine:
             raise ConversionError(f"{prefix}: SequenceIDs.txt and the proteome hold different genes "
                                   f"({len(theirs - mine)} only in OrthoFinder, {len(mine - theirs)} only in the proteome)")
-    mapping_md5 = md5_file(working / "SpeciesIDs.txt") + md5_file(working / "SequenceIDs.txt")
+    mapping_md5 = md5_file(ids / "SpeciesIDs.txt") + md5_file(ids / "SequenceIDs.txt")
     prefixes = sorted(species, key=len, reverse=True)       # longest first, for the doubled-prefix strip
 
     # 2. orthogroups, and the cluster that holds each
@@ -572,7 +592,7 @@ def convert(results, out, species, proteomes, of_version, tree_set="raw_pruned",
             root = raw_tree(working, cluster_of[og], genes, internal_to_gene)
         else:
             root = resolved_tree(resolved[og], genes, prefixes)
-        rows = alignment(results, alignment_source, og, cluster_of[og], genes, prefixes, gene_to_internal)
+        rows = alignment(results, alignment_source, og, cluster_of[og], genes, prefixes, gene_to_internal, working)
         how[write_family(paths.family(og), root, rows, release, of_version, mapping_md5)] += 1
 
     # 5. native/summary/: the counts and the skipped orthogroups, the split-cluster check, the model of every cluster
@@ -665,10 +685,12 @@ def write_cluster_models(folder, clusters, working, models):
     (folder / "cluster_models.tsv").write_text("\n".join(lines) + "\n")
 
 
-def run_record(run_settings, conversion, coordinator_version, catalog_md5, proteomes_md5, species, release=RELEASE):
+def run_record(run_settings, conversion, coordinator_version, catalog_md5, proteomes_md5, species, release=RELEASE,
+               interim=None):
     """The run.json record (for schemas.write_run) from the run's run_settings.json, the model setting's file
     beside it (tree_settings.json: the current rule and its history, which `set-model` changes during the run)
-    and the conversion."""
+    and the conversion. `interim` (a snapshot's description) goes into the parameters, and its time is the
+    record's "finished"."""
     s = json.loads(Path(run_settings).read_text())
     tree_settings = Path(run_settings).with_name("tree_settings.json")
     model_file = json.loads(tree_settings.read_text()) if tree_settings.is_file() else {}
@@ -698,16 +720,73 @@ def run_record(run_settings, conversion, coordinator_version, catalog_md5, prote
         "min_family_size": conversion["min_family_size"],
         "counts": conversion["counts"], "split_check": conversion["split_check"],
     }
+    if interim:
+        parameters["interim"] = interim
     return {"release": release, "method": METHOD, "method_version": versions.get("orthofinder"),
             "parameters": parameters, "started": first.get("started"),
-            "finished": last.get("finished"), "coordinator_version": coordinator_version,
+            "finished": interim["taken"] if interim else last.get("finished"), "coordinator_version": coordinator_version,
             "catalog_md5": catalog_md5, "proteomes_md5": proteomes_md5, "species": list(species)}
+
+
+def _inputs(layout, release, run_settings):
+    """-> (catalog, species, run settings, proteomes_md5); refuses when the proteomes changed since the run began."""
+    from cichlid_data import Catalog
+    catalog = Catalog.load(layout)
+    species = [s.prefix for s in catalog.species(release=release, part=PART)]
+    settings = json.loads(Path(run_settings).read_text())
+    proteomes_md5 = catalog.proteomes_md5(species)
+    if settings.get("proteomes_md5") and settings["proteomes_md5"] != proteomes_md5:
+        raise ConversionError("the catalog's proteomes_md5 differs from the one the run started with; not converting")
+    return catalog, species, settings, proteomes_md5
+
+
+SNAPSHOT_STAGE = "Results_snapshot"     # snapshot.take's staged copy; its WorkingDirectory has the clusters and trees
+
+
+def convert_snapshot(folder, run_settings=None, out=None, tree_set="raw_pruned", alignment_source="orthogroup",
+                     min_size=DEFAULT_MIN_SIZE, release=RELEASE, cache=None, say=print):
+    """Convert an interim snapshot folder (snapshot.take) into the coordinator's format, by default in
+    <folder>/Results/<release>/OrthoFinder/. The run's run_settings.json and tree_cache are found beside the
+    folder unless given. Writing into the coordinator's own Results folder is refused. -> the output folder."""
+    import cichlid_data
+    from cichlid_data import get_layout, schemas
+    folder = Path(folder).resolve()
+    manifest = json.loads((folder / "manifest.json").read_text())
+    run_settings = Path(run_settings) if run_settings else folder.parent / "run_settings.json"
+    layout = get_layout()
+    official = Path(layout.results(release, PART).root().local).resolve()
+    out = Path(out).resolve() if out else folder / "Results" / release / PART
+    if out == official or official in out.parents:
+        raise ConversionError(f"interim results do not go into the coordinator's Results folder ({official})")
+    if cache is None and (folder.parent / "tree_cache").is_dir():
+        cache = folder.parent / "tree_cache"
+    catalog, species, settings, proteomes_md5 = _inputs(layout, release, run_settings)
+    versions = settings["attempts"][-1].get("versions", {})
+    paths = OutputPaths(root=out)
+    conversion = convert(manifest["snapshot_results"], paths, species, {p: layout.proteome(p).local for p in species},
+                         versions.get("orthofinder") or "", tree_set, alignment_source, min_size, release, cache,
+                         working=folder / SNAPSHOT_STAGE / "WorkingDirectory", say=say)
+    size = re.match(r"snapshot_upto(\d+)_", folder.name)
+    interim = {"snapshot": folder.name, "up_to_sequences": int(size.group(1)) if size else None,
+               "taken": manifest["taken"], "trees_included": manifest["trees_included"],
+               "clusters_left_out": manifest["clusters_excluded"], "genes_left_out": manifest["genes_excluded"],
+               "note": "interim results while the run goes on: orthogroup IDs are this snapshot's own numbering and "
+                       "differ from the final run's (the snapshot's mapping.tsv links them once the run is done); "
+                       "genes of the clusters left out have no best_family"}
+    schemas.write_run(paths.run_record(), **run_record(
+        run_settings, conversion, cichlid_data.__version__, catalog.md5(), proteomes_md5, species, release, interim))
+    say(f"interim results in the coordinator's format: {out}")
+    return out
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="cichlid-orthofinder convert", description=__doc__.split("\n\n")[0])
-    p.add_argument("--results", required=True, help="OrthoFinder's final Results_<date>/ folder")
-    p.add_argument("--run-settings", required=True, help="the run's run_settings.json")
+    src = p.add_mutually_exclusive_group(required=True)
+    src.add_argument("--results", help="OrthoFinder's final Results_<date>/ folder")
+    src.add_argument("--snapshot", help="an interim snapshot folder (snapshot_upto<N>_<time>/); written into it "
+                                        "unless --out is given, never into the coordinator's Results folder")
+    p.add_argument("--run-settings", help="the run's run_settings.json (required with --results; with --snapshot "
+                                          "the one beside the snapshot folder)")
     p.add_argument("--tree-set", default="raw_pruned", choices=TREE_SETS)
     p.add_argument("--alignment", default="orthogroup", choices=ALIGNMENT_SOURCES)
     p.add_argument("--min-size", type=int, default=DEFAULT_MIN_SIZE)
@@ -715,15 +794,22 @@ def main(argv=None):
     p.add_argument("--out", help="output folder (default: the coordinator's Results/<release>/OrthoFinder/)")
     p.add_argument("--release", default=RELEASE)
     args = p.parse_args(argv)
+    if args.snapshot:
+        try:
+            convert_snapshot(args.snapshot, args.run_settings, args.out, args.tree_set, args.alignment, args.min_size,
+                             args.release, args.cache)
+        except ConversionError as e:
+            raise SystemExit(str(e))
+        return 0
+    if not args.run_settings:
+        p.error("--run-settings is required with --results")
     import cichlid_data
-    from cichlid_data import Catalog, get_layout, schemas
+    from cichlid_data import get_layout, schemas
     layout = get_layout()
-    catalog = Catalog.load(layout)
-    species = [s.prefix for s in catalog.species(release=args.release, part=PART)]
-    settings = json.loads(Path(args.run_settings).read_text())
-    proteomes_md5 = catalog.proteomes_md5(species)
-    if settings.get("proteomes_md5") and settings["proteomes_md5"] != proteomes_md5:
-        raise SystemExit("the catalog's proteomes_md5 differs from the one the run started with; not converting")
+    try:
+        catalog, species, settings, proteomes_md5 = _inputs(layout, args.release, args.run_settings)
+    except ConversionError as e:
+        raise SystemExit(str(e))
     paths = OutputPaths(root=args.out) if args.out else OutputPaths(results_layout=layout.results(args.release, PART))
     versions = settings["attempts"][-1].get("versions", {})
     conversion = convert(args.results, paths, species, {p: layout.proteome(p).local for p in species},

@@ -491,6 +491,11 @@ def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_
     def save():
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
+    def on_snapshot():
+        save()                                               # the conversion reads run_settings.json
+        convert_snapshots(settings["interim"], settings_file, release, say)
+        save()
+
     watcher = None
     if snapshot_sizes:
         from .snapshot import Watcher
@@ -499,7 +504,7 @@ def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_
     say("$ " + " ".join(cmd))
     t0 = time.time()
     log_file = work / f"attempt_{attempt['n']}.log"
-    rc = run_watched(cmd, {**os.environ, **env_add}, log_file, watcher, poll_seconds, on_snapshot=save, say=say)
+    rc = run_watched(cmd, {**os.environ, **env_add}, log_file, watcher, poll_seconds, on_snapshot=on_snapshot, say=say)
     attempt.update(finished=_now(), wall_seconds=round(time.time() - t0), exit_code=rc)
     ok = finished_ok(rc, log_file)
     if ok:
@@ -522,6 +527,21 @@ def run(work, run_name="our_species_tree", release="v1", threads=None, analysis_
                            + f"); see {log_file}; rerun with --resume (finished trees come from the cache)")
     say(f"done in {attempt['wall_seconds']} s; results in {attempt['results']}; settings in {settings_file}")
     return settings_file
+
+
+def convert_snapshots(state, run_settings, release="v1", say=print):
+    """Each interim snapshot not yet converted -> the coordinator's format in its own folder
+    (<snapshot>/Results/<release>/OrthoFinder/, convert.convert_snapshot). A failure is recorded in the
+    snapshot's entry and never stops the run; `cichlid-orthofinder convert --snapshot` redoes it by hand."""
+    from .convert import convert_snapshot
+    for s in state.get("snapshots", []):
+        if "converted" in s or "conversion_error" in s:
+            continue
+        try:
+            s["converted"] = str(convert_snapshot(s["folder"], run_settings, release=release, say=say))
+        except Exception as e:                                # the run goes on
+            s["conversion_error"] = f"{type(e).__name__}: {e}"
+            say(f"interim results up to {s['size']} not converted (the run continues): {e}")
 
 
 def finished_ok(rc, log_file, results=None):

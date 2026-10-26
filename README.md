@@ -8,7 +8,8 @@ It follows the coordinator's instruction sheet for this repository, `docs/orthof
 coordinator (a verbatim copy is in `docs/` here), and works with coordinator version 0.14.
 
 **Status (2026-10-24):**
-- **The code is finished and tested** (tag `run-v1-r4`; the code is the same as in `run-v1-r2` and `run-v1-r3`).
+- **The code is finished and tested** (tag `run-v1-r5`: early results now also come out in the coordinator's format,
+  and results of a resumed run convert correctly; see `CHANGES.md`).
 - **The input species and the output format match the coordinator,** and every check passes.
 - **The full 35-species run is paused.** It waits for the coordinator to approve the run-time choices listed in
   "Waiting for coordinator approval" below. Then it restarts, reusing the 7,619 gene trees already finished.
@@ -115,7 +116,7 @@ Orthogroups of fewer than 4 genes get no family folder (the minimum size can be 
 Everything below passed on 2026-10-23 and was rechecked on 2026-10-24.
 
 **The basics:**
-- **123 offline tests** run in about 2 seconds: `PYTHONPATH=src python -m unittest discover tests`.
+- **129 offline tests** run in about 2 seconds: `PYTHONPATH=src python -m unittest discover tests`.
 - **Restart gates, 11 of 11:** `cichlid-orthofinder verify` checks the inputs, the tree, the versions, the data folder
   and the code before a restart.
 
@@ -154,7 +155,13 @@ None of these change the inputs or the output format.
 - **Smallest trees first,** so early results arrive sooner. This uses an option already inside OrthoFinder, plus a
   one-word fix applied in memory; OrthoFinder's files are not changed.
 - **Early results.** Interim snapshots are taken once every family up to 300 and up to 1,000 genes has its tree.
-  They are for looking only, never converted or pushed.
+  Each one is converted straight away into the coordinator's format (same `assign/`, `families/`, `native/summary/`
+  and `run.json`, same writers and checks), inside the snapshot's own folder:
+  `<run folder>/snapshot_upto<N>_<time>/Results/v1/OrthoFinder/`. It never goes into the coordinator's Results
+  folder and is not pushed. Two differences from the final results, both written in its `run.json`
+  (`parameters.interim`): the orthogroup numbers are the snapshot's own (a `mapping.tsv` links them to the final ones
+  when the run ends), and genes of families still running have no family yet. Tested on a small real run: all 31
+  interim families were byte for byte the same as their final ones.
 - **Progress report.** `cichlid-orthofinder status <run folder>` shows the stage, the trees done and the expected dates.
 - **The model by family size** can be set: the default is ModelFinder for all, and changing it needs approval.
   It can even be changed while the run is going (`set-model`).
@@ -227,7 +234,7 @@ None of these changes the inputs or the output format. Each one changes only how
 | Model by family size | `--model full` (default) / `hybrid` / a rule such as `MFP;1000:TEST`; changeable during the run with `set-model` | Which `-m` each family gets | none with `full`; slightly lower accuracy for the 19 largest with `hybrid` | `full`: the sheet's setting. `hybrid`: Coordinator approval needed |
 | Threads per tree | `--thread-rule "1;600:2;1500:8;3000:16"` (default); `--cores` caps the total (default: all cores) | 1 thread per tree, 2 from 600 genes, 8 from 1,500, 16 from 3,000; never more than the cap | **Trees built with more than 1 thread can differ slightly between runs, even with the fixed seed** (tested). With `--thread-rule 1`, every tree is exactly reproducible but the largest are much slower | Coordinator approval needed |
 | Job order | `--order ascending` (default) / `descending` | Smallest families first, using OrthoFinder's own option (a one-word fix in memory) | none (tested: byte-identical output) | Coordinator approval needed |
-| Early results | `--snapshot-sizes 300,1000` (default) / `''` for none | A complete copy of the results for every family up to 300 and 1,000 genes, while the run continues | none (made from a copy; matched the final results in the test) | Coordinator approval needed (where they are shared) |
+| Early results | `--snapshot-sizes 300,1000` (default) / `''` for none | The results, in the coordinator's format, for every family up to 300 and 1,000 genes, while the run continues (kept locally) | none (made from a copy; matched the final results in the test) | Coordinator approval needed (where they are shared) |
 | Accepting a run | always on | A run is accepted only if every family of 3+ genes got its tree | none; it only catches failures | — |
 | Family settings | `convert --tree-set raw_pruned` (default) / `resolved`; `--min-size 4` (default) | Which tree goes in each family folder; the smallest family that gets a folder | Orthogroups of 2–3 genes get no folder (they are listed) | Coordinator approval needed |
 | IQ-TREE version | 3.1.3, as the sheet names (3.1.4 is now out) | — | moving would rebuild every finished tree | stay, unless the coordinator asks |
@@ -251,7 +258,7 @@ None of these changes the inputs or the output format. Each one changes only how
 | The checks before a restart | `src/cichlid_orthofinder/verify.py` |
 | How each gene tree is built and kept | `src/cichlid_orthofinder/treecache.py` |
 | Smallest-first order | `src/cichlid_orthofinder/of_launcher.py` |
-| Early results | `src/cichlid_orthofinder/snapshot.py` |
+| Early results | `src/cichlid_orthofinder/snapshot.py`; converted by `convert.py` (`convert_snapshot`) |
 | The progress report | `src/cichlid_orthofinder/status.py` |
 | The commands (`cichlid-orthofinder run`, `convert`, `native`, `verify`, `status`, `set-model`, ...) | `src/cichlid_orthofinder/cli.py` |
 | The tests, and a small real OrthoFinder output used by them | `tests/`, `tests/fixtures/pilot2/` |

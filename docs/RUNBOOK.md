@@ -43,8 +43,11 @@ cichlid-orthofinder status <RUN>                 # stage, work done, the three s
 cichlid-orthofinder set-model <RUN> full         # only if the owner changes the model setting during the run
 ```
 
-If the machine stops: the restart command of section 2 again (with `--resume`). Early results appear under
-`<RUN>/snapshots/`; they are for looking, never converted or pushed.
+If the machine stops: the restart command of section 2 again (with `--resume`). Early results appear in
+`<RUN>/snapshot_upto<N>_<time>/`, and the run converts each one into the coordinator's format in
+`<RUN>/snapshot_upto<N>_<time>/Results/v1/OrthoFinder/` (never into the coordinator's Results folder; not pushed;
+where they may be shared waits for the coordinator). To redo a conversion by hand:
+`cichlid-orthofinder convert --snapshot <RUN>/snapshot_upto<N>_<time>`.
 
 ## 4. After the run
 

@@ -5,6 +5,7 @@ import json
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from cichlid_data import schemas
@@ -333,3 +334,113 @@ class TestRunRecordModelHistory(Case):
         self.assertEqual((p["model_now"], p["model_since"]), ("MFP", "2026-10-30T10:00:00-04:00"))
         self.assertEqual(p["model_history"], [{"model": "MFP;1000:TEST", "since": "2026-10-22T18:26:01-04:00"}])
         self.assertEqual(p["coordinator_versions"], [{"attempt": 1, "version": "0.13.0", "note": "recorded afterwards"}])
+
+
+def _same_tree(a, b):
+    fa = {p.relative_to(a).as_posix(): p.read_bytes() for p in a.rglob("*") if p.is_file()}
+    fb = {p.relative_to(b).as_posix(): p.read_bytes() for p in b.rglob("*") if p.is_file()}
+    return fa == fb
+
+
+class TestResumedAndSnapshot(Case):
+    def move_ids(self, to):
+        """As after a resume (-b): the mapping files only in the first working folder, named in Log.txt."""
+        to.mkdir(parents=True)
+        for name in ("SpeciesIDs.txt", "SequenceIDs.txt"):
+            shutil.move(self.working / name, to / name)
+        with open(self.results / "Log.txt", "a") as fh:
+            fh.write(f"WorkingDirectory_Base: {to}/\n")
+
+    def test_resumed_run_reads_the_ids_from_the_first_working_folder(self):
+        self.convert("a")
+        self.move_ids(self.root / "first" / "WorkingDirectory")
+        self.convert("b")
+        self.assertTrue(_same_tree(self.out("a"), self.out("b")))
+
+    def test_ids_nowhere_is_refused(self):
+        (self.working / "SequenceIDs.txt").unlink()
+        with self.assertRaisesRegex(C.ConversionError, "no SequenceIDs.txt"):
+            self.convert()
+
+    def test_working_folder_elsewhere_gives_the_same_files(self):
+        # a snapshot: OrthoFinder's -fgt results beside a staged working folder with the clusters and trees
+        self.convert("a", alignment_source="raw_cluster")
+        stage = self.root / "stage" / "WorkingDirectory"
+        shutil.move(self.working, stage)
+        self.working.mkdir()
+        self.convert("b", alignment_source="raw_cluster", working=stage)
+        self.assertTrue(_same_tree(self.out("a"), self.out("b")))
+
+    def snapshot(self):
+        """A snapshot folder as snapshot.take leaves it, beside the run's run_settings.json."""
+        run_dir = self.root / "run"
+        folder = run_dir / "snapshot_upto300_20261101_120000"
+        shutil.move(self.working, folder / "Results_snapshot" / "WorkingDirectory")
+        shutil.move(self.results, folder / "Results_Nov01")
+        (folder / "manifest.json").write_text(json.dumps({
+            "taken": "2026-11-01T12:00:00-04:00", "trees_included": 5, "clusters_excluded": 1,
+            "genes_excluded": 40, "snapshot_results": str(folder / "Results_Nov01")}))
+        (run_dir / "run_settings.json").write_text(json.dumps({"proteomes_md5": "f" * 32, "attempts": [
+            {"started": "2026-10-22T18:24:05-04:00", "versions": {"orthofinder": "3.1.5"}, "settings": {"seed": 1}}]}))
+        return folder
+
+    def fake_coordinator(self):
+        root = self.root
+
+        class Where:
+            def __init__(self, path):
+                self.local = path
+
+        class Layout:
+            def results(self, release, part):
+                class R:
+                    def root(self):
+                        return Where(root / "official" / "Results" / release / part)
+                return R()
+
+            def proteome(self, p):
+                return Where(root / "in" / "proteomes" / f"{p}.faa")
+
+        class Catalog:
+            @staticmethod
+            def load(layout):
+                return Catalog()
+
+            def species(self, release, part):
+                return [type("S", (), {"prefix": p}) for p in SPECIES]
+
+            def proteomes_md5(self, species):
+                return "f" * 32
+
+            def md5(self):
+                return "0" * 32
+
+        return [unittest.mock.patch("cichlid_data.get_layout", lambda: Layout()),
+                unittest.mock.patch("cichlid_data.Catalog", Catalog)]
+
+    def test_snapshot_is_converted_into_its_own_folder_in_the_coordinators_format(self):
+        self.convert("a")
+        folder = self.snapshot()
+        patches = self.fake_coordinator()
+        for p in patches:
+            p.start()
+        try:
+            out = C.convert_snapshot(folder, say=lambda *a: None)
+            with self.assertRaisesRegex(C.ConversionError, "coordinator's Results folder"):
+                C.convert_snapshot(folder, out=self.root / "official" / "Results" / "v1" / "OrthoFinder",
+                                   say=lambda *a: None)
+        finally:
+            for p in patches:
+                p.stop()
+        self.assertEqual(out, folder / "Results" / "v1" / "OrthoFinder")
+        self.assertFalse((self.root / "official").exists())
+        self.assertEqual(schemas.validate_families(out / "families", SPECIES), [])
+        self.assertEqual(schemas.validate_run(out / "run.json"), [])
+        for f in (out / "assign").iterdir():
+            self.assertEqual(schemas.ASSIGN.validate_file(f, f.name.split(".")[0]), [], f)
+        self.assertTrue(_same_tree(self.out("a") / "families", out / "families"))
+        self.assertTrue(_same_tree(self.out("a") / "assign", out / "assign"))
+        rec = json.loads((out / "run.json").read_text())
+        self.assertEqual(rec["finished"], "2026-11-01T12:00:00-04:00")
+        self.assertEqual(rec["parameters"]["interim"]["up_to_sequences"], 300)
+        self.assertEqual(rec["parameters"]["interim"]["genes_left_out"], 40)

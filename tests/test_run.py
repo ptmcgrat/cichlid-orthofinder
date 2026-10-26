@@ -106,6 +106,26 @@ class TestVersions(unittest.TestCase):
         self.assertTrue(all(v is None for v in run.program_versions(fake).values()))
 
 
+
+class TestInterimConversion(unittest.TestCase):
+    def test_each_snapshot_converted_once_and_a_failure_never_raises(self):
+        import unittest.mock
+        state = {"snapshots": [{"size": 300, "folder": "/w/snapshot_upto300_x"},
+                               {"size": 1000, "folder": "/w/snapshot_upto1000_x"}]}
+
+        def fake(folder, run_settings, release="v1", say=print):
+            if "1000" in folder:
+                raise RuntimeError("disk full")
+            return Path(folder) / "Results" / release / "OrthoFinder"
+
+        with unittest.mock.patch("cichlid_orthofinder.convert.convert_snapshot", side_effect=fake) as conv:
+            run.convert_snapshots(state, "/w/run_settings.json", say=lambda m: None)
+            run.convert_snapshots(state, "/w/run_settings.json", say=lambda m: None)   # nothing new: no calls
+        self.assertEqual(conv.call_count, 2)
+        self.assertEqual(state["snapshots"][0]["converted"], "/w/snapshot_upto300_x/Results/v1/OrthoFinder")
+        self.assertEqual(state["snapshots"][1]["conversion_error"], "RuntimeError: disk full")
+
+
 if __name__ == "__main__":
     unittest.main()
 

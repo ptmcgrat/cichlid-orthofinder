@@ -46,5 +46,23 @@ class TestKeepList(unittest.TestCase):
                 native.curate(FIXTURE, Path(d) / "dest")
 
 
+
+class TestResumedRun(unittest.TestCase):
+    def test_mapping_files_come_from_the_first_working_folder(self):
+        # after a resume (-b) SpeciesIDs.txt and SequenceIDs.txt are only in Log.txt's WorkingDirectory_Base
+        with tempfile.TemporaryDirectory() as d:
+            results, first = Path(d) / "Results_Oct20", Path(d) / "first" / "WorkingDirectory"
+            shutil.copytree(FIXTURE, results)
+            first.mkdir(parents=True)
+            for name in ("SpeciesIDs.txt", "SequenceIDs.txt"):
+                shutil.move(results / "WorkingDirectory" / name, first / name)
+            with open(results / "Log.txt", "a") as fh:
+                fh.write(f"WorkingDirectory_Base: {first}/\n")
+            dest = Path(d) / "dest"
+            native.curate(results, dest)
+            for name in ("SpeciesIDs.txt", "SequenceIDs.txt"):
+                self.assertEqual((dest / "WorkingDirectory" / name).read_bytes(), (first / name).read_bytes())
+            self.assertTrue((dest / "WorkingDirectory" / "Trees_ids").is_dir())
+
 if __name__ == "__main__":
     unittest.main()
